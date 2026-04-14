@@ -511,7 +511,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MapGenerator
   width: 256
   height: 256
-  noiseScale: 0.3
+  noiseScale: 25
+  octaves: 4
+  persistance: 0.5
+  lacunarity: 1.69
+  seed: 0
+  offset: {x: 0, y: 0}
   autoUpdate: 1
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
