@@ -17,6 +17,7 @@ public class MapGenerator : MonoBehaviour
 
     [SerializeField] private int seed = 0;
     [SerializeField] private Vector2 offset;
+    [SerializeField] private float meshHeightMultiplier = 1f;
 
     [SerializeField] public bool autoUpdate = false;
 
@@ -55,7 +56,7 @@ public class MapGenerator : MonoBehaviour
         }
         else if (drawMode == DrawMode.Mesh)
         {
-            display.DrawMesh(MeshGenerator.GenerateTerrainMesh(noiseMap), TextureGenerator.TextureFromColorMap(colorMap, width, height));
+            display.DrawMesh(MeshGenerator.GenerateTerrainMesh(noiseMap, meshHeightMultiplier), TextureGenerator.TextureFromColorMap(colorMap, width, height));
         }
     }
 
