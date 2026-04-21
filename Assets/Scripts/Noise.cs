@@ -1,8 +1,37 @@
 using UnityEngine;
 
-public class Noise : MonoBehaviour
+public static class Noise
 {
+    public enum NoiseBlendMode
+    {
+        CarveCracks,
+        Add,
+        Multiply
+    }
+
+    // This method generates a noise map using Perlin noise, which is a type of gradient noise commonly used in procedural generation. The method takes various parameters to control the characteristics of the noise, such as scale, octaves, persistence, and lacunarity. It also allows for blending with Voronoi noise to create more complex terrain features.
     public static float[,] GenerateNoiseMap(int width, int height, int seed, float scale, int octaves, float persistance, float lacunarity, Vector2 offset)
+    {
+        return GeneratePerlinNoiseMap(width, height, seed, scale, octaves, persistance, lacunarity, offset);
+    }
+
+    // This method ensures that the provided Voronoi noise settings are valid and fall within acceptable ranges. If any of the settings are out of bounds, they are adjusted to default values to prevent errors during noise generation. This helps maintain the stability and reliability of the noise generation process.
+    public static float[,] GenerateNoiseMap(int width, int height, int seed, float scale, int octaves, float persistance, float lacunarity, Vector2 offset,
+        bool useVoronoiCracks, VoronoiNoise.Settings voronoiSettings, float voronoiWeight, NoiseBlendMode blendMode = NoiseBlendMode.CarveCracks)
+    {
+        float[,] perlinMap = GeneratePerlinNoiseMap(width, height, seed, scale, octaves, persistance, lacunarity, offset);
+
+        if (!useVoronoiCracks || voronoiWeight <= 0f)
+        {
+            return perlinMap;
+        }
+
+        float[,] voronoiMap = VoronoiNoise.GeneratePatternMap(width, height, seed, voronoiSettings);
+        return BlendNoiseMaps(perlinMap, voronoiMap, Mathf.Clamp01(voronoiWeight), blendMode);
+    }
+
+    // This method ensures that the provided Voronoi noise settings are valid and fall within acceptable ranges. If any of the settings are out of bounds, they are adjusted to default values to prevent errors during noise generation. This helps maintain the stability and reliability of the noise generation process.
+    private static float[,] GeneratePerlinNoiseMap(int width, int height, int seed, float scale, int octaves, float persistance, float lacunarity, Vector2 offset)
     {
         float[,] noiseMap = new float[width, height];
 
@@ -68,5 +97,40 @@ public class Noise : MonoBehaviour
         }
 
         return noiseMap;
+    }
+
+    // This method blends the Perlin noise map and the Voronoi crack map together based on the specified blend mode and weight. The resulting blended map is then used to create more complex terrain features by combining the smooth variations of Perlin noise with the sharp, defined cracks of Voronoi noise.
+    private static float[,] BlendNoiseMaps(float[,] perlinMap, float[,] voronoiMap, float voronoiWeight, NoiseBlendMode blendMode)
+    {
+        int width = perlinMap.GetLength(0);
+        int height = perlinMap.GetLength(1);
+        float[,] blendedMap = new float[width, height];
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                float perlinValue = perlinMap[x, y];
+                float voronoiValue = voronoiMap[x, y];
+                float blendedValue;
+
+                switch (blendMode)
+                {
+                    case NoiseBlendMode.Add:
+                        blendedValue = Mathf.Clamp01(perlinValue + voronoiValue * voronoiWeight);
+                        break;
+                    case NoiseBlendMode.Multiply:
+                        blendedValue = Mathf.Clamp01(perlinValue * (1f - voronoiValue * voronoiWeight));
+                        break;
+                    default:
+                        blendedValue = Mathf.Clamp01(perlinValue - voronoiValue * voronoiWeight);
+                        break;
+                }
+
+                blendedMap[x, y] = blendedValue;
+            }
+        }
+
+        return blendedMap;
     }
 }

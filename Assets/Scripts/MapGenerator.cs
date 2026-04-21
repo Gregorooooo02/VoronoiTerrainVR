@@ -1,5 +1,6 @@
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class MapGenerator : MonoBehaviour
 {
@@ -18,6 +19,18 @@ public class MapGenerator : MonoBehaviour
     [SerializeField] private int seed = 0;
     [SerializeField] private Vector2 offset;
     [SerializeField] private float meshHeightMultiplier = 1f;
+    [Min(1)]
+    [FormerlySerializedAs("meshResolutionMultiplier")]
+    [SerializeField] private int meshSmoothingPasses = 1;
+    [Range(0f, 1f)]
+    [SerializeField] private float meshSmoothingStrength = 0.2f;
+
+    [SerializeField] private bool useVoronoiCracks = true;
+    [SerializeField] private bool useCellularVoronoi = false;
+    [Range(0, 1)]
+    [SerializeField] private float voronoiWeight = 0.35f;
+    [SerializeField] private Noise.NoiseBlendMode noiseBlendMode = Noise.NoiseBlendMode.CarveCracks;
+    [SerializeField] private VoronoiNoise.Settings voronoiSettings = default;
 
     [SerializeField] public bool autoUpdate = false;
 
@@ -25,7 +38,29 @@ public class MapGenerator : MonoBehaviour
 
     public void GenerateMap()
     {
-        float[,] noiseMap = Noise.GenerateNoiseMap(width, height, seed, noiseScale, octaves, persistance, lacunarity, offset);
+        if (voronoiSettings.cellDensity <= 0)
+        {
+            voronoiSettings = VoronoiNoise.Settings.Default;
+        }
+
+        VoronoiNoise.Settings activeVoronoiSettings = voronoiSettings;
+        activeVoronoiSettings.patternMode = useCellularVoronoi
+            ? VoronoiNoise.PatternMode.Cellular
+            : VoronoiNoise.PatternMode.Cracks;
+
+        float[,] noiseMap = Noise.GenerateNoiseMap(
+            width,
+            height,
+            seed,
+            noiseScale,
+            octaves,
+            persistance,
+            lacunarity,
+            offset,
+            useVoronoiCracks,
+            activeVoronoiSettings,
+            voronoiWeight,
+            noiseBlendMode);
         Color[] colorMap = new Color[width * height];
 
         for (int y = 0; y < height; y++)
@@ -56,7 +91,9 @@ public class MapGenerator : MonoBehaviour
         }
         else if (drawMode == DrawMode.Mesh)
         {
-            display.DrawMesh(MeshGenerator.GenerateTerrainMesh(noiseMap, meshHeightMultiplier), TextureGenerator.TextureFromColorMap(colorMap, width, height));
+            display.DrawMesh(
+                MeshGenerator.GenerateTerrainMesh(noiseMap, meshHeightMultiplier, meshSmoothingPasses, meshSmoothingStrength),
+                TextureGenerator.TextureFromColorMap(colorMap, width, height));
         }
     }
 
@@ -78,6 +115,10 @@ public class MapGenerator : MonoBehaviour
         {
             octaves = 0;
         }
+
+        voronoiWeight = Mathf.Clamp01(voronoiWeight);
+        meshSmoothingPasses = Mathf.Max(1, meshSmoothingPasses);
+        meshSmoothingStrength = Mathf.Clamp01(meshSmoothingStrength);
     }
     
     [System.Serializable]
